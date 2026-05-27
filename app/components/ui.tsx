@@ -12,7 +12,7 @@ export const tabs: Array<{ id: Tab; label: string; icon: Parameters<typeof Icon>
 export function AppHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#c6c6cd] bg-[#f8f9ff]/95 shadow-sm backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 md:px-8">
+      <div className="mx-auto flex h-16 max-w-6xl items-end justify-between px-5 pb-3 md:h-14 md:items-center md:px-8 md:pb-0">
         <div className="flex items-center gap-2 text-black">
           <Icon name="security" size={24} />
           <span className="text-lg font-bold">Verification Hub</span>

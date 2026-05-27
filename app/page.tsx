@@ -36,7 +36,7 @@ export default function Home() {
     <div className="min-h-dvh bg-[#f8f9ff] text-[#0b1c30]">
       <AppHeader />
 
-      <div className="mx-auto flex w-full max-w-6xl gap-6 px-5 pb-28 pt-20 md:px-8 md:pb-8">
+      <div className="mx-auto flex w-full max-w-6xl gap-6 px-5 pb-28 pt-24 md:px-8 md:pb-8 md:pt-20">
         <DesktopSidebar activeTab={activeTab} onChange={setActiveTab} />
         <main className="min-w-0 flex-1">
           {activeTab !== "verify" && <PageIntro description={intro.description} title={intro.title} />}
@@ -176,7 +176,6 @@ function PaymentInstructions() {
       <p className="mb-3 text-base leading-6 text-[#45464d]">
         Transfer the required amount using one of the methods below, then upload the receipt.
       </p>
-      <PaymentMethod icon="account_balance" value="CBE: 1000XXXXXXXXX" />
       <PaymentMethod icon="phone_iphone" value="Telebirr: 0911XXXXXX" />
     </div>
   );
@@ -194,26 +193,9 @@ function PaymentMethod({ icon, value }: { icon: "account_balance" | "phone_iphon
 function TopUpForm() {
   return (
     <form className="space-y-5">
-      <AmountInput />
       <UploadField />
       <PrimaryButton icon="check_circle">Submit Proof of Payment</PrimaryButton>
     </form>
-  );
-}
-
-function AmountInput() {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-semibold">Amount Paid (ETB)</span>
-      <div className="relative">
-        <input
-          className="h-12 w-full rounded-lg border border-[#c6c6cd] bg-white px-4 pr-14 text-base outline-none focus:border-black"
-          placeholder="e.g. 500"
-          type="number"
-        />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#76777d]">ETB</span>
-      </div>
-    </label>
   );
 }
 
