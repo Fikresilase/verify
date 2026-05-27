@@ -998,7 +998,7 @@ function SuccessSheet({ onClose, result }: { onClose: () => void; result: Verifi
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#213145]/70 md:items-center">
       <div className="success-sheet max-h-[90dvh] w-full max-w-[640px] overflow-hidden rounded-t-[28px] bg-[#f8f9ff] shadow-2xl md:rounded-[28px]">
         <SuccessHeader isSuccess={isSuccess} />
-        <div className="px-5 pb-12 pt-6 md:pb-6">
+        <div className="safe-modal-footer px-5 pt-6 md:pb-6">
           <SuccessDetails checks={checks} />
           <div className="my-5">
             <SecureStatus text="Secure Connection Verified" />
@@ -1024,7 +1024,7 @@ function TopUpSuccessSheet({ amount, onClose }: { amount: string; onClose: () =>
           <h2 className="relative z-10 text-2xl font-bold">Credits Added</h2>
           <p className="relative z-10 mt-2 text-base font-semibold">You added {amount} ETB to your account.</p>
         </div>
-        <div className="px-5 pb-12 pt-6 md:pb-6">
+        <div className="safe-modal-footer px-5 pt-6 md:pb-6">
           <PrimaryButton onClick={onClose} rounded="full">
             Done
           </PrimaryButton>
