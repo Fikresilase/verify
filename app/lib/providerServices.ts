@@ -354,7 +354,7 @@ function scrapeTelebirrReceipt(html: string): TelebirrReceipt {
     receiptNo: matchText(html, /<td[^>]*class="[^"]*receipttableTd[^"]*receipttableTd2[^"]*"[^>]*>\s*([A-Z0-9]+)\s*<\/td>/i),
     serviceFee: matchText(html, /የአገልግሎት\s+ክፍያ\/Service\s+fee(?!\s+ተ\.እ\.ታ).*?<\/td>\s*<td[^>]*>\s*([\d,]+(?:\.\d+)?\s+Birr)/i),
     serviceFeeVAT: getText("የአገልግሎት ክፍያ ተ.እ.ታ/Service fee VAT"),
-    settledAmount: matchText(html, /Settled\s+Amount.*?([\d,]+(?:\.\d+)?\s+Birr)/is),
+    settledAmount: matchText(html, /Settled\s+Amount[\s\S]*?([\d,]+(?:\.\d+)?\s+Birr)/i),
     totalPaidAmount: getText("ጠቅላላ የተከፈለ/Total Paid Amount"),
     transactionStatus: getText("የክፍያው ሁኔታ/transaction status"),
   };
