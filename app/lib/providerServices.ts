@@ -227,6 +227,7 @@ async function verifyMpesa(transactionId: string): Promise<VerifyResult> {
 
     console.log("[mpesa] raw_response", JSON.stringify(data, null, 2));
 
+    if (!data) return { success: false, error: "M-Pesa receipt data was not found" };
     if (data.responseCode !== "0" || !data.base64Data) return { success: false, error: "Invalid M-Pesa response" };
 
     const text = await parsePdfText(Buffer.from(String(data.base64Data), "base64"));
