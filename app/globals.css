@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f9ff;
+  --foreground: #0b1c30;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.success-sheet {
+  animation: slide-up 0.36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.success-pulse {
+  animation: pulse-green 2s infinite;
+}
+
+.dot-pattern {
+  background-image: radial-gradient(circle at 2px 2px, #00714d 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+.receipt-mockup {
+  background-image:
+    linear-gradient(90deg, rgba(198, 198, 205, 0.28) 1px, transparent 1px),
+    linear-gradient(rgba(198, 198, 205, 0.28) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 108, 73, 0.35);
+  }
+
+  70% {
+    box-shadow: 0 0 0 20px rgba(0, 108, 73, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 108, 73, 0);
+  }
+}
