@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Icon } from "./components/Icon";
+import { useTelegramWebApp } from "./components/useTelegramWebApp";
 import {
   AppHeader,
   BottomNav,
@@ -23,6 +24,7 @@ const members = [
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("verify");
   const [showResult, setShowResult] = useState(false);
+  const telegram = useTelegramWebApp();
 
   const intro = useMemo(() => {
     if (activeTab === "pay") {
@@ -33,8 +35,8 @@ export default function Home() {
   }, [activeTab]);
 
   return (
-    <div className="min-h-dvh bg-[#f8f9ff] text-[#0b1c30]">
-      <AppHeader />
+    <div className={`min-h-dvh bg-[#f8f9ff] text-[#0b1c30] ${telegram.colorScheme === "dark" ? "telegram-dark" : ""}`}>
+      <AppHeader platform={telegram.platform} username={telegram.user?.username || telegram.user?.first_name} />
 
       <div className="mx-auto flex w-full max-w-6xl gap-6 px-5 pb-28 pt-24 md:px-8 md:pb-8 md:pt-20">
         <DesktopSidebar activeTab={activeTab} onChange={setActiveTab} />
