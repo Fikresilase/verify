@@ -249,6 +249,9 @@ async function verifyMpesa(transactionId: string): Promise<VerifyResult> {
 }
 
 async function verifyTelebirr(reference: string): Promise<VerifyResult> {
+  const verifyLeulResult = await verifyTelebirrViaLeul(reference);
+  if (verifyLeulResult.success) return verifyLeulResult;
+
   const primaryUrl = `https://transactioninfo.ethiotelecom.et/receipt/${reference}`;
   const fallbackProxies = (process.env.FALLBACK_PROXIES || "").split(",").map((url) => url.trim()).filter(Boolean);
   const skipPrimary = process.env.SKIP_PRIMARY_VERIFICATION === "true";
@@ -277,6 +280,49 @@ async function verifyTelebirr(reference: string): Promise<VerifyResult> {
   }
 
   return { success: false, error: "All Telebirr verification methods failed" };
+}
+
+async function verifyTelebirrViaLeul(reference: string): Promise<VerifyResult> {
+  const apiKey = process.env.VERIFY_API_KEY;
+  const baseUrl = process.env.VERIFY_API_BASE_URL || "https://verifyapi.leulzenebe.pro";
+
+  if (!apiKey) {
+    return { success: false, error: "Missing VERIFY_API_KEY for Telebirr proxy verification" };
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/verify-telebirr`, {
+      body: JSON.stringify({ reference }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      method: "POST",
+    });
+
+    if (!response.ok) return { success: false, error: `Verify Leul Telebirr HTTP ${response.status}` };
+
+    const payload = await response.json();
+    console.log("[telebirr.verify-leul] raw_response", JSON.stringify(payload, null, 2));
+    const data = payload.data || payload;
+
+    if (!payload.success && !data.receiptNo) {
+      return { success: false, error: "Verify Leul Telebirr returned invalid response" };
+    }
+
+    return {
+      amount: parseAmount(data.settledAmount || data.totalPaidAmount),
+      payer: data.payerName,
+      payerAccount: data.payerTelebirrNo,
+      receiver: data.creditedPartyName,
+      receiverAccount: data.creditedPartyAccountNo,
+      reference: data.receiptNo || reference,
+      success: true,
+      time: formatReceiptTime(data.paymentDate || ""),
+    };
+  } catch (error) {
+    return toFailure(error, "Verify Leul Telebirr verification failed");
+  }
 }
 
 function mapTelebirrReceipt(receipt: TelebirrReceipt, fallbackReference: string): VerifyResult {

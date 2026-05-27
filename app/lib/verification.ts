@@ -133,8 +133,8 @@ function buildNameCheck(
   receiptValue: string,
   verifiedValue: string,
 ): VerificationCheck {
-  const normalizedReceipt = normalizeForCompare(receiptValue);
-  const normalizedVerified = normalizeForCompare(verifiedValue);
+  const normalizedReceipt = normalizeForCompare(stripAccountSuffix(receiptValue));
+  const normalizedVerified = normalizeForCompare(stripAccountSuffix(verifiedValue));
 
   return {
     key,
@@ -169,5 +169,22 @@ function normalizeTimeForCompare(value: string) {
     return `${day}-${month}-${year} ${hour}:${minute}:${second}`;
   }
 
+  const us12Hour = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (us12Hour) {
+    const [, month, day, year, rawHour, minute, second = "00", period] = us12Hour;
+    let hour = Number(rawHour);
+    if (period.toUpperCase() === "PM" && hour < 12) hour += 12;
+    if (period.toUpperCase() === "AM" && hour === 12) hour = 0;
+    return `${day.padStart(2, "0")}-${month.padStart(2, "0")}-${year} ${String(hour).padStart(2, "0")}:${minute}:${second}`;
+  }
+
   return normalizeForCompare(trimmed);
+}
+
+function stripAccountSuffix(value: string) {
+  return value
+    .replace(/[-\s]*ETB[-\s]*\d+\s*$/i, "")
+    .replace(/[-\s]*[A-Z]{2,}[-\s]*\d+\s*$/i, "")
+    .replace(/\s+\d{4,}\s*$/, "")
+    .trim();
 }
