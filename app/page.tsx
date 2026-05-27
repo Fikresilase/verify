@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./components/Icon";
 import { useTelegramWebApp } from "./components/useTelegramWebApp";
+import type { VerificationCheck, VerificationResult } from "./lib/verification";
 import {
   AppHeader,
   BottomNav,
   DesktopSidebar,
-  DetailRow,
   Metric,
   PageIntro,
   PrimaryButton,
@@ -21,9 +21,41 @@ const members = [
   { initials: "MT", name: "Miki T.", phone: "+251 92 112 9044", scans: 7 },
 ];
 
+const demoChecks: VerificationCheck[] = [
+  {
+    key: "provider",
+    label: "Provider",
+    matched: true,
+    receiptValue: "telebirr",
+    verifiedValue: "telebirr",
+  },
+  {
+    key: "date",
+    label: "Date",
+    matched: true,
+    receiptValue: "2025-06-05T18:56:47Z",
+    verifiedValue: "2025-06-05T18:56:47Z",
+  },
+  {
+    key: "transactionTo",
+    label: "Transaction To",
+    matched: true,
+    receiptValue: "Resto-A",
+    verifiedValue: "Resto-A",
+  },
+  {
+    key: "transactionNumber",
+    label: "Transaction Number",
+    matched: true,
+    receiptValue: "CE626EJRNS",
+    verifiedValue: "CE626EJRNS",
+  },
+];
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("verify");
   const [showResult, setShowResult] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const telegram = useTelegramWebApp();
 
   const intro = useMemo(() => {
@@ -42,24 +74,69 @@ export default function Home() {
         <DesktopSidebar activeTab={activeTab} onChange={setActiveTab} />
         <main className="min-w-0 flex-1">
           {activeTab !== "verify" && <PageIntro description={intro.description} title={intro.title} />}
-          {activeTab === "verify" && <VerifyScreen onVerified={() => setShowResult(true)} />}
+          {activeTab === "verify" && (
+            <VerifyScreen
+              onVerified={(result) => {
+                setVerificationResult(result);
+                setShowResult(true);
+              }}
+            />
+          )}
           {activeTab === "pay" && <PayScreen />}
           {activeTab === "manage" && <ManageScreen />}
         </main>
       </div>
 
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
-      {showResult && <SuccessSheet onClose={() => setShowResult(false)} />}
+      {showResult && <SuccessSheet onClose={() => setShowResult(false)} result={verificationResult} />}
     </div>
   );
 }
 
-function VerifyScreen({ onVerified }: { onVerified: () => void }) {
+function VerifyScreen({ onVerified }: { onVerified: (result: VerificationResult) => void }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  async function handleCapture(file: File) {
+    setIsProcessing(true);
+
+    try {
+      const image = await fileToDataUrl(file);
+      const extractionResponse = await fetch("/api/vision/extract-receipt", {
+        body: JSON.stringify({ image }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const extractionPayload = await extractionResponse.json();
+
+      if (!extractionResponse.ok) {
+        throw new Error(extractionPayload.error || "Receipt extraction failed");
+      }
+
+      const verificationResponse = await fetch("/api/verify-receipt", {
+        body: JSON.stringify({ extracted: extractionPayload.extracted }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const verificationPayload = await verificationResponse.json();
+
+      if (!verificationResponse.ok) {
+        onVerified(buildFailedResult(extractionPayload.extracted, verificationPayload.error || "Verification failed"));
+        return;
+      }
+
+      onVerified(verificationPayload.result);
+    } catch {
+      onVerified(buildFailedResult(null, "Unable to read receipt"));
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
   return (
     <section className="grid gap-5 lg:grid-cols-[minmax(360px,600px)_minmax(280px,1fr)] lg:items-start">
       <div className="flex min-h-[calc(100dvh-176px)] flex-col gap-5 lg:min-h-0">
         <SecureStatus text="Secure Connection Active" />
-        <ScannerCard onVerified={onVerified} />
+        <ScannerCard isProcessing={isProcessing} onCapture={handleCapture} />
       </div>
       <div className="space-y-5 lg:pt-7">
         <LastScanCard />
@@ -69,17 +146,25 @@ function VerifyScreen({ onVerified }: { onVerified: () => void }) {
   );
 }
 
-function ScannerCard({ onVerified }: { onVerified: () => void }) {
+function ScannerCard({ isProcessing, onCapture }: { isProcessing: boolean; onCapture: (file: File) => void }) {
   return (
-    <button
-      className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-[#c6c6cd] bg-[#d3e4fe] text-left shadow-[0_4px_12px_rgba(11,28,48,0.04)] active:scale-[0.99] md:aspect-square"
-      onClick={onVerified}
-      type="button"
-    >
+    <label className="relative block aspect-[3/4] w-full cursor-pointer overflow-hidden rounded-xl border border-[#c6c6cd] bg-[#d3e4fe] text-left shadow-[0_4px_12px_rgba(11,28,48,0.04)] active:scale-[0.99] md:aspect-square">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(255,255,255,0.9),rgba(211,228,254,0.5)_35%,rgba(33,49,69,0.2)_100%)]" />
       <ReceiptMockup />
-      <CameraPrompt />
-    </button>
+      <CameraPrompt isProcessing={isProcessing} />
+      <input
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        disabled={isProcessing}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onCapture(file);
+          event.target.value = "";
+        }}
+        type="file"
+      />
+    </label>
   );
 }
 
@@ -101,15 +186,15 @@ function ReceiptMockup() {
   );
 }
 
-function CameraPrompt() {
+function CameraPrompt({ isProcessing }: { isProcessing: boolean }) {
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-end px-6 pb-8 text-center">
       <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-black text-white shadow-xl">
         <Icon name="camera" size={36} />
       </div>
-      <h1 className="text-2xl font-bold text-black">Capture your receipt</h1>
+      <h1 className="text-2xl font-bold text-black">{isProcessing ? "Verifying receipt" : "Capture your receipt"}</h1>
       <p className="mt-2 max-w-xs text-sm font-medium leading-5 text-[#45464d]">
-        Tap the camera button after the payment receipt is visible.
+        {isProcessing ? "Checking the receipt against the provider record." : "Tap the camera button after the payment receipt is visible."}
       </p>
     </div>
   );
@@ -282,13 +367,16 @@ function MemberRow({ member }: { member: (typeof members)[number] }) {
   );
 }
 
-function SuccessSheet({ onClose }: { onClose: () => void }) {
+function SuccessSheet({ onClose, result }: { onClose: () => void; result: VerificationResult | null }) {
+  const checks = result?.checks || demoChecks;
+  const isSuccess = checks.every((check) => check.matched);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#213145]/70 md:items-center">
       <div className="success-sheet max-h-[90dvh] w-full max-w-[640px] overflow-hidden rounded-t-[28px] bg-[#f8f9ff] shadow-2xl md:rounded-[28px]">
-        <SuccessHeader />
+        <SuccessHeader isSuccess={isSuccess} />
         <div className="px-5 py-6">
-          <SuccessDetails />
+          <SuccessDetails checks={checks} />
           <div className="my-5">
             <SecureStatus text="Secure Connection Verified" />
           </div>
@@ -301,26 +389,112 @@ function SuccessSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SuccessHeader() {
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildFailedResult(
+  extracted: VerificationResult["extracted"] | null,
+  reason: string,
+): VerificationResult {
+  const fallback = extracted || {
+    date: "",
+    provider: "telebirr" as const,
+    transactionNumber: "",
+    transactionTo: "",
+  };
+
+  return {
+    checks: [
+      {
+        key: "provider",
+        label: "Provider",
+        matched: Boolean(extracted),
+        receiptValue: fallback.provider,
+        verifiedValue: extracted ? fallback.provider : reason,
+      },
+      {
+        key: "date",
+        label: "Date",
+        matched: false,
+        receiptValue: fallback.date,
+        verifiedValue: reason,
+      },
+      {
+        key: "transactionTo",
+        label: "Transaction To",
+        matched: false,
+        receiptValue: fallback.transactionTo,
+        verifiedValue: reason,
+      },
+      {
+        key: "transactionNumber",
+        label: "Transaction Number",
+        matched: false,
+        receiptValue: fallback.transactionNumber,
+        verifiedValue: reason,
+      },
+    ],
+    extracted: fallback,
+    isSuccess: false,
+    normalized: fallback,
+    providerResponse: { error: reason },
+  };
+}
+
+function SuccessHeader({ isSuccess }: { isSuccess: boolean }) {
   return (
-    <div className="relative overflow-hidden bg-[#6cf8bb] px-5 py-8 text-center text-[#00714d]">
+    <div
+      className={`relative overflow-hidden px-5 py-8 text-center ${
+        isSuccess ? "bg-[#6cf8bb] text-[#00714d]" : "bg-[#ffdad6] text-[#93000a]"
+      }`}
+    >
       <div className="dot-pattern absolute inset-0 opacity-20" />
-      <div className="success-pulse relative z-10 mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[#006c49] text-white shadow-lg">
-        <Icon name="check_circle" size={48} />
+      <div
+        className={`success-pulse relative z-10 mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full text-white shadow-lg ${
+          isSuccess ? "bg-[#006c49]" : "bg-[#ba1a1a]"
+        }`}
+      >
+        <span className="text-5xl font-black leading-none">{isSuccess ? "✓" : "×"}</span>
       </div>
-      <h2 className="relative z-10 text-3xl font-bold">Verified</h2>
-      <p className="relative z-10 mt-1 text-base font-medium">Transaction confirmed securely.</p>
+      <h2 className="relative z-10 text-3xl font-bold">{isSuccess ? "ተረጋግጧል" : "አጠራጣሪ"}</h2>
+      <p className="relative z-10 mt-1 text-base font-medium">
+        {isSuccess ? "All receipt fields matched the provider record." : "One or more receipt fields did not match."}
+      </p>
     </div>
   );
 }
 
-function SuccessDetails() {
+function SuccessDetails({ checks }: { checks: VerificationCheck[] }) {
   return (
-    <div className="rounded-lg border border-[#c6c6cd] border-l-4 border-l-[#006c49] bg-white p-4 shadow-sm">
-      <DetailRow icon="payments" label="Amount" strong value="500.00 ETB" />
-      <DetailRow icon="account_balance" label="Bank" value="CBE" />
-      <DetailRow icon="storefront" label="Recipient" value="Resto-A" />
-      <DetailRow code icon="receipt_long" label="Transaction ID" last value="TXN123456789" />
+    <div className="rounded-lg border border-[#c6c6cd] bg-white p-4 shadow-sm">
+      {checks.map((check, index) => (
+        <CheckRow check={check} key={check.key} last={index === checks.length - 1} />
+      ))}
+    </div>
+  );
+}
+
+function CheckRow({ check, last }: { check: VerificationCheck; last: boolean }) {
+  return (
+    <div className={`flex items-start gap-3 py-3 ${last ? "" : "border-b border-[#e5eeff]"}`}>
+      <div
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${
+          check.matched ? "bg-[#006c49]" : "bg-[#ba1a1a]"
+        }`}
+      >
+        {check.matched ? "✓" : "×"}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold">{check.label}</p>
+        <p className="truncate text-xs font-medium text-[#45464d]">Receipt: {check.receiptValue || "Missing"}</p>
+        <p className="truncate text-xs font-medium text-[#45464d]">Verified: {check.verifiedValue || "Missing"}</p>
+      </div>
     </div>
   );
 }
