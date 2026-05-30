@@ -11,7 +11,7 @@ export type ExtractedReceipt = {
 };
 
 export type VerificationCheck = {
-  key: "provider" | "time" | "transactionTo" | "transactionNumber";
+  key: "amount" | "provider" | "time" | "transactionTo" | "transactionNumber";
   label: string;
   matched: boolean;
   receiptValue: string;
@@ -86,6 +86,7 @@ export const extractionJsonSchema = {
 export function compareExtractedToVerified(extracted: ExtractedReceipt, verified: ExtractedReceipt) {
   const checks: VerificationCheck[] = [
     buildExactCheck("provider", "Provider", extracted.provider, verified.provider),
+    buildAmountCheck("amount", "Amount", extracted.amount || "", verified.amount || ""),
     buildTimeCheck("time", "Time", extracted.time, verified.time),
     buildNameCheck("transactionTo", "Transaction To", extracted.transactionTo, verified.transactionTo),
     buildExactCheck("transactionNumber", "Transaction Number", extracted.transactionNumber, verified.transactionNumber),
@@ -94,6 +95,24 @@ export function compareExtractedToVerified(extracted: ExtractedReceipt, verified
   return {
     checks,
     isSuccess: checks.every((check) => check.matched),
+  };
+}
+
+function buildAmountCheck(
+  key: VerificationCheck["key"],
+  label: string,
+  receiptValue: string,
+  verifiedValue: string,
+): VerificationCheck {
+  const receiptAmount = parseComparableAmount(receiptValue);
+  const verifiedAmount = parseComparableAmount(verifiedValue);
+
+  return {
+    key,
+    label,
+    matched: receiptAmount !== null && verifiedAmount !== null && Math.abs(receiptAmount - verifiedAmount) < 0.01,
+    receiptValue,
+    verifiedValue,
   };
 }
 
@@ -187,4 +206,9 @@ function stripAccountSuffix(value: string) {
     .replace(/[-\s]*[A-Z]{2,}[-\s]*\d+\s*$/i, "")
     .replace(/\s+\d{4,}\s*$/, "")
     .trim();
+}
+
+function parseComparableAmount(value: string) {
+  const match = value.replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
 }

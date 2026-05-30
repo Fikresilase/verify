@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f9ff;
-  --foreground: #0b1c30;
+  --background: oklch(0.977 0.006 176);
+  --foreground: oklch(0.19 0.025 248);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
-  --font-mono: "Cascadia Mono", "Consolas", monospace;
+  --font-sans: "Geist", "Satoshi", "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-mono: "Geist Mono", "Cascadia Mono", "Consolas", monospace;
 }
 
 * {
@@ -24,11 +26,11 @@ body {
   min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
-  font-family: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
+  font-family: "Geist", "Satoshi", "Segoe UI", Arial, Helvetica, sans-serif;
 }
 
 .safe-modal-footer {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
 }
 
 button,
@@ -38,10 +40,35 @@ input {
 
 button {
   cursor: pointer;
+  transition:
+    background-color 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    color 180ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+::selection {
+  background: rgba(22, 163, 107, 0.18);
+}
+
+.app-shell {
+  background:
+    linear-gradient(180deg, rgba(22, 163, 107, 0.1), rgba(246, 248, 251, 0) 340px),
+    linear-gradient(90deg, rgba(47, 100, 160, 0.1), rgba(246, 248, 251, 0) 48%),
+    #f6f8fb;
+}
+
+.telegram-dark {
+  --background: #0d1724;
+  --foreground: #f8fbff;
 }
 
 .success-sheet {
-  animation: slide-up 0.36s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slide-up 0.28s var(--ease-out);
 }
 
 .success-pulse {
@@ -53,11 +80,11 @@ button {
   background-size: 16px 16px;
 }
 
-.receipt-mockup {
-  background-image:
-    linear-gradient(90deg, rgba(198, 198, 205, 0.28) 1px, transparent 1px),
-    linear-gradient(rgba(198, 198, 205, 0.28) 1px, transparent 1px);
-  background-size: 16px 16px;
+.surface-line {
+  border-color: rgba(148, 163, 184, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 18px 46px -28px rgba(15, 23, 42, 0.32);
 }
 
 @keyframes slide-up {
@@ -83,5 +110,18 @@ button {
 
   100% {
     box-shadow: 0 0 0 0 rgba(0, 108, 73, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .success-pulse,
+  .success-sheet {
+    animation: none;
   }
 }

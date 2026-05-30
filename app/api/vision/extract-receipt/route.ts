@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiError } from "../../../lib/apiErrors";
 import { extractReceiptFromImage } from "../../../lib/serverVerification";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const { image } = (await request.json()) as { image?: string };
@@ -15,9 +17,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ extracted, ok: true });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "OpenRouter extraction failed" },
-      { status: 502 },
-    );
+    const failure = apiError(error, "Receipt extraction failed");
+    return NextResponse.json({ ok: false, error: failure.message }, { status: failure.status });
   }
 }

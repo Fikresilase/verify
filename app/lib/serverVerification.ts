@@ -1,5 +1,13 @@
-import { extractionJsonSchema, providerHints, type ExtractedReceipt, type Provider } from "./verification";
-import { normalizeLocalVerifyResult, verifyWithLocalProvider, type VerifyResult } from "./providerServices";
+import {
+  compareExtractedToVerified,
+  extractionJsonSchema,
+  providerHints,
+  type ExtractedReceipt,
+  type VerificationResult,
+} from "./verification";
+import { fetchWithTimeout, readTimeoutMs } from "./httpTimeout";
+import { verifyWithLocalProvider } from "./providerServices";
+import { normalizeProviderResponse } from "./providerNormalization";
 
 const openRouterModel = "qwen/qwen3-vl-8b-instruct";
 
@@ -7,10 +15,10 @@ export async function extractReceiptFromImage(image: string) {
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing OPENROUTER_API_KEY");
+    throw new Error("Receipt AI is not configured. Add OPENROUTER_API_KEY in Vercel environment variables.");
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     body: JSON.stringify({
       messages: [
         {
@@ -57,19 +65,17 @@ export async function extractReceiptFromImage(image: string) {
       "X-Title": "Verification Hub",
     },
     method: "POST",
-  });
+  }, readTimeoutMs(process.env.OPENROUTER_TIMEOUT_MS, 45000));
 
   if (!response.ok) {
-    throw new Error("OpenRouter extraction failed");
+    throw new Error(`Receipt AI extraction failed with HTTP ${response.status}`);
   }
 
   const completion = await response.json();
   const content = completion.choices?.[0]?.message?.content;
-  console.log("[vision.extract] raw_openrouter_content", content);
-  console.log("[vision.extract] raw_openrouter_response", JSON.stringify(completion, null, 2));
+  if (!content) throw new Error("Receipt AI returned an empty response");
 
   const extracted = JSON.parse(content) as ExtractedReceipt;
-  console.log("[vision.extract] parsed_extracted_receipt", extracted);
 
   return extracted;
 }
@@ -79,8 +85,6 @@ export async function callProviderVerification(
   extra: { accountSuffix?: string; phoneNumber?: string; suffix?: string },
 ) {
   const providerResponse = await verifyWithLocalProvider(extracted, extra);
-  console.log("[verify.provider] provider", extracted.provider);
-  console.log("[verify.provider] raw_response", JSON.stringify(providerResponse, null, 2));
 
   if (!providerResponse.success) {
     throw new Error(providerResponse.error || "Provider verification failed");
@@ -89,113 +93,110 @@ export async function callProviderVerification(
   return providerResponse;
 }
 
-export function normalizeProviderResponse(provider: Provider, response: Record<string, unknown>): ExtractedReceipt {
-  if ("success" in response) {
-    return normalizeLocalVerifyResult(provider, response as VerifyResult);
-  }
+export type ReceiptVerificationOutcome =
+  | { extracted: ExtractedReceipt; type: "needs_cbe_suffix" }
+  | { result: VerificationResult; type: "completed" };
 
-  if (provider === "cbe") {
-    return {
-      time: formatReceiptTime(String(response.date || "")),
-      accountSuffix: "",
-      amount: "",
-      receiptUrl: "",
-      provider,
-      transactionNumber: String(response.reference || ""),
-      transactionTo: String(response.receiver || ""),
-    };
-  }
-
-  if (provider === "telebirr") {
-    const data = response.data as Record<string, unknown>;
-
-    return {
-      time: formatReceiptTime(String(data.paymentDate || "")),
-      accountSuffix: "",
-      amount: "",
-      receiptUrl: "",
-      provider,
-      transactionNumber: String(data.receiptNo || ""),
-      transactionTo: String(data.creditedPartyName || ""),
-    };
-  }
-
-  if (provider === "dashen") {
-    return {
-      time: "",
-      accountSuffix: "",
-      amount: "",
-      receiptUrl: "",
-      provider,
-      transactionNumber: String(response.transactionReference || ""),
-      transactionTo: String(response.narrative || ""),
-    };
-  }
-
-  if (provider === "abyssinia") {
-    const data = response.data as Record<string, unknown>;
-
-    return {
-      time: formatReceiptTime(String(data.date || "")),
-      accountSuffix: "",
-      amount: "",
-      receiptUrl: "",
-      provider,
-      transactionNumber: String(data.reference || ""),
-      transactionTo: String(data.receiver || ""),
-    };
-  }
-
-  if (provider === "cbebirr") {
-    return {
-      time: formatReceiptTime(String(response.transactionDate || "")),
-      accountSuffix: "",
-      amount: "",
-      receiptUrl: "",
-      provider,
-      transactionNumber: String(response.receiptNumber || response.reference || ""),
-      transactionTo: String(response.receiverName || response.creditAccount || ""),
-    };
-  }
-
-  const data = response.data as Record<string, unknown>;
-
-  return {
-    time: formatReceiptTime(String(data.transactionDate || "")),
-    accountSuffix: "",
-    amount: "",
-    receiptUrl: "",
-    provider,
-    transactionNumber: String(data.receiptNumber || ""),
-    transactionTo: String(data.receiver || ""),
+export async function verifyExtractedReceipt(
+  receipt: ExtractedReceipt,
+  extra: { accountSuffix?: string; phoneNumber?: string; receiptUrl?: string; suffix?: string } = {},
+): Promise<ReceiptVerificationOutcome> {
+  const extracted = {
+    ...receipt,
+    ...(extra.accountSuffix ? { accountSuffix: extra.accountSuffix } : {}),
+    ...(extra.receiptUrl ? { receiptUrl: extra.receiptUrl } : {}),
   };
+
+  if (extra.receiptUrl && extracted.provider === "cbe") {
+    extracted.transactionNumber = extra.receiptUrl;
+  }
+
+  if (extracted.provider === "cbe" && !extracted.receiptUrl && !extra.accountSuffix) {
+    return {
+      extracted,
+      type: "needs_cbe_suffix",
+    };
+  }
+
+  try {
+    const providerResponse = await callProviderVerification(extracted, {
+      accountSuffix: extra.accountSuffix || extracted.accountSuffix,
+      phoneNumber: extra.phoneNumber,
+      suffix: extra.suffix || extra.accountSuffix || extracted.accountSuffix,
+    });
+    const normalized = normalizeProviderResponse(extracted.provider, providerResponse);
+    const comparison = compareExtractedToVerified(extracted, normalized);
+
+    return {
+      result: {
+        checks: comparison.checks,
+        extracted,
+        isSuccess: comparison.isSuccess,
+        normalized,
+        providerResponse,
+      },
+      type: "completed",
+    };
+  } catch (providerError) {
+    const errorMessage = providerError instanceof Error ? providerError.message : "Provider verification failed";
+
+    return {
+      result: buildProviderFailureResult(extracted, errorMessage),
+      type: "completed",
+    };
+  }
 }
 
-function formatReceiptTime(value: string) {
-  if (!value) {
-    return "";
-  }
-
-  const dashDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/);
-
-  if (dashDateMatch) {
-    const [, year, month, day, hour, minute, second = "00"] = dashDateMatch;
-    return `${day}-${month}-${year} ${hour}:${minute}:${second}`;
-  }
-
-  const slashYearFirstMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
-
-  if (slashYearFirstMatch) {
-    const [, year, month, day, hour, minute, second = "00"] = slashYearFirstMatch;
-    return `${day}-${month}-${year} ${hour}:${minute}:${second}`;
-  }
-
-  const slashDateMatch = value.match(/^(\d{2})[/-](\d{2})[/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
-
-  if (slashDateMatch) {
-    const [, day, month, year, hour, minute, second = "00"] = slashDateMatch;
-    return `${day}-${month}-${year} ${hour}:${minute}:${second}`;
-  }
-
-  return value;
+function buildProviderFailureResult(extracted: ExtractedReceipt, errorMessage: string): VerificationResult {
+  return {
+    checks: [
+      {
+        key: "provider",
+        label: "Provider",
+        matched: true,
+        receiptValue: extracted.provider,
+        verifiedValue: extracted.provider,
+      },
+      {
+        key: "amount",
+        label: "Amount",
+        matched: false,
+        receiptValue: extracted.amount || "",
+        verifiedValue: errorMessage,
+      },
+      {
+        key: "time",
+        label: "Time",
+        matched: false,
+        receiptValue: extracted.time,
+        verifiedValue: errorMessage,
+      },
+      {
+        key: "transactionTo",
+        label: "Transaction To",
+        matched: false,
+        receiptValue: extracted.transactionTo,
+        verifiedValue: errorMessage,
+      },
+      {
+        key: "transactionNumber",
+        label: "Transaction Number",
+        matched: false,
+        receiptValue: extracted.transactionNumber,
+        verifiedValue: errorMessage,
+      },
+    ],
+    extracted,
+    isSuccess: false,
+    normalized: {
+      accountSuffix: extracted.accountSuffix,
+      amount: extracted.amount,
+      provider: extracted.provider,
+      receiptUrl: extracted.receiptUrl,
+      time: "",
+      transactionNumber: "",
+      transactionTo: "",
+    },
+    providerResponse: { error: errorMessage },
+  };
 }
