@@ -33,12 +33,17 @@ function SuccessSheet({ onClose, result }: { onClose: () => void; result: Verifi
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#213145]/70 md:items-center">
-      <div className="success-sheet max-h-[92dvh] w-full max-w-[640px] overflow-hidden rounded-t-[24px] bg-[#fbfdfb] shadow-2xl md:rounded-[24px]">
+      <div className="success-sheet relative flex max-h-[calc(100dvh-12px)] w-full max-w-[640px] flex-col overflow-hidden rounded-t-[24px] bg-[#fbfdfb] shadow-2xl md:max-h-[92dvh] md:rounded-[24px]">
+        <CloseButton onClose={onClose} />
         <SuccessHeader presentation={presentation} />
-        <div className="safe-modal-footer space-y-5 px-5 pt-5 md:pb-6">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pt-5">
           <ResultFacts facts={presentation.facts} />
           <SuccessDetails checks={source.checks} />
-          <PrimaryButton onClick={onClose} rounded="full">{presentation.actionLabel}</PrimaryButton>
+        </div>
+        <div className="safe-modal-footer shrink-0 bg-[#fbfdfb] px-5 pt-4 shadow-[0_-18px_36px_-30px_rgba(17,24,39,0.5)]">
+          <PrimaryButton onClick={onClose} rounded="full">
+            {presentation.actionLabel}
+          </PrimaryButton>
         </div>
       </div>
     </div>
@@ -48,7 +53,8 @@ function SuccessSheet({ onClose, result }: { onClose: () => void; result: Verifi
 function TopUpSuccessSheet({ amount, onClose }: { amount: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#213145]/70 md:items-center">
-      <div className="success-sheet w-full max-w-[520px] rounded-t-[28px] bg-[#fbfdfb] shadow-2xl md:rounded-[28px]">
+      <div className="success-sheet relative flex max-h-[calc(100dvh-12px)] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[24px] bg-[#fbfdfb] shadow-2xl md:rounded-[24px]">
+        <CloseButton onClose={onClose} />
         <div className="relative overflow-hidden bg-[#6cf8bb] px-5 py-8 text-center text-[#00714d]">
           <div className="dot-pattern absolute inset-0 opacity-20" />
           <div className="relative z-10 mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#006c49] text-[#fbfdfb] shadow-lg">
@@ -57,11 +63,24 @@ function TopUpSuccessSheet({ amount, onClose }: { amount: string; onClose: () =>
           <h2 className="relative z-10 text-2xl font-bold">Credits Added</h2>
           <p className="relative z-10 mt-2 text-base font-semibold">You added {amount} ETB to your account.</p>
         </div>
-        <div className="safe-modal-footer px-5 pt-6 md:pb-6">
+        <div className="safe-modal-footer shrink-0 px-5 pt-6">
           <PrimaryButton onClick={onClose} rounded="full">Done</PrimaryButton>
         </div>
       </div>
     </div>
+  );
+}
+
+function CloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      aria-label="Close result"
+      className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[#fbfdfb]/90 text-2xl font-black leading-none text-[#111827] shadow-[0_14px_30px_-18px_rgba(17,24,39,0.8)]"
+      onClick={onClose}
+      type="button"
+    >
+      x
+    </button>
   );
 }
 
@@ -78,16 +97,16 @@ function SuccessHeader({ presentation }: { presentation: ResultPresentation }) {
   };
 
   return (
-    <div className={`relative overflow-hidden px-5 py-8 text-center ${styles[presentation.tone]}`}>
+    <div className={`relative shrink-0 overflow-hidden px-5 py-6 text-center md:py-8 ${styles[presentation.tone]}`}>
       <div className="dot-pattern absolute inset-0 opacity-20" />
-      <div className={`success-pulse relative z-10 mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full text-[#fbfdfb] shadow-lg ${iconStyles[presentation.tone]}`}>
-        {presentation.tone === "success" ? <Icon name="check_circle" size={48} /> : <span className="text-5xl font-black leading-none">!</span>}
+      <div className={`success-pulse relative z-10 mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full text-[#fbfdfb] shadow-lg md:mb-4 md:h-20 md:w-20 ${iconStyles[presentation.tone]}`}>
+        {presentation.tone === "success" ? <Icon name="check_circle" size={40} /> : <span className="text-4xl font-black leading-none">!</span>}
       </div>
       <div className="relative z-10 mx-auto mb-3 w-fit rounded-full bg-[#fbfdfb]/70 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em]">
         {presentation.badge}
       </div>
-      <h2 className="relative z-10 text-3xl font-black">{presentation.title}</h2>
-      <p className="relative z-10 mx-auto mt-2 max-w-sm text-base font-semibold leading-6">{presentation.summary}</p>
+      <h2 className="relative z-10 text-2xl font-black md:text-3xl">{presentation.title}</h2>
+      <p className="relative z-10 mx-auto mt-2 max-w-sm text-sm font-semibold leading-5 md:text-base md:leading-6">{presentation.summary}</p>
     </div>
   );
 }

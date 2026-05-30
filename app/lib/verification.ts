@@ -62,7 +62,7 @@ export const extractionJsonSchema = {
     },
     amount: {
       description:
-        "The actual transaction amount or settled amount visible on the receipt, preserving the currency word if visible. For top-up receipts prefer Settled Amount over Total Paid Amount, for example 300 Birr. Empty string if not visible.",
+        "The total paid amount visible on the receipt, preserving the currency word if visible. For Telebirr receipts prefer Total Paid Amount or Total Amount over Settled Amount when both are visible, for example 402.00 ETB. Empty string if not visible.",
       type: "string",
     },
     receiptUrl: {

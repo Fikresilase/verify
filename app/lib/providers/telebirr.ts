@@ -75,7 +75,7 @@ async function verifyTelebirrViaLeul(reference: string): Promise<VerifyResult> {
     }
 
     return {
-      amount: parseAmount(data.settledAmount || data.totalPaidAmount),
+      amount: parseAmount(data.totalPaidAmount || data.settledAmount),
       payer: data.payerName,
       payerAccount: data.payerTelebirrNo,
       receiver: data.creditedPartyName,

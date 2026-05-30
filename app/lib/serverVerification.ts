@@ -31,7 +31,7 @@ export async function extractReceiptFromImage(image: string) {
                 "The time field must be formatted as DD-MM-YYYY HH:mm:ss, for example 24-05-2026 17:56:34.",
                 "The image may be a banking app screenshot, receipt page, SMS screenshot, or text-message notification.",
                 "If it is a text message/SMS and contains any receipt URL, verification URL, or View Receipt link, always extract it into receiptUrl.",
-                "Extract amount from the receipt. For Telebirr top-up/payment receipts, prefer Settled Amount over Total Paid Amount when both are visible.",
+                "Extract the total paid amount from the receipt. For Telebirr receipts, prefer Total Paid Amount or Total Amount over Settled Amount when both are visible.",
                 "For Telebirr iPhone success screens, use Transaction Time, Transaction To, and Transaction Number exactly from the screen.",
                 "For CBE message receipts, extract transactionNumber from transaction ID and accountSuffix from the receiver account suffix after ETB-, for example ETB-7086 means accountSuffix 7086.",
                 "For CBE receipts, if a View Receipt link or QR resolves to mbreciept.cbe.com.et, put the full URL in receiptUrl. The token/link is preferred over suffix verification.",
