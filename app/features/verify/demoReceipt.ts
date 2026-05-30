@@ -11,7 +11,7 @@ export const demoVerificationResult: VerificationResult = {
   extracted: {
     amount: "500 Birr",
     provider: "telebirr",
-    receiptUrl: "https://transactioninfo.ethiotelecom.et/receipt/CE626EJRNS",
+    receiptUrl: "",
     time: "24-05-2026 17:56:34",
     transactionNumber: "CE626EJRNS",
     transactionTo: "Resto-A Group",
